@@ -41,16 +41,14 @@ static char *prefixes[] = { "00", "010", "011", "1000", "1001", "1010", "1011",
 
 void put_entier(struct bitstream *b, unsigned int f)
 {
-
-
-
-
-
-
-
-
-
-
+	unsigned int nb_bits_utiles = nb_bits_utile(f);
+	if(nb_bits_utiles > 15)
+		EXIT;
+	// prefixe
+	put_bit_string(b, prefixes[nb_bits_utiles]);
+	// suffixe : nombre sans son premier bit
+	if(nb_bits_utiles > 1)
+		put_bits(b, nb_bits_utiles - 1, f);
 
 }
 
@@ -65,38 +63,37 @@ void put_entier(struct bitstream *b, unsigned int f)
 
 unsigned int get_entier(struct bitstream *b)
 {
+	unsigned int nb_bits_utiles = 0;
 
+	if( get_bit(b) == 0 ) { // 0
+		if( get_bit(b) == 0 ) // 00
+			return 0;
+		else { // 01
+			if( get_bit(b) == 0 ) // 010
+				return 1;
+			else{ // 011
+				nb_bits_utiles = 2;
+			}
+		}
+	}else { // 1
+		if( get_bit(b) == 0 ) { // 10
+			nb_bits_utiles = get_bits(b, 2) + 3; // 1000 -> 1011
+		}else { // 11
+			nb_bits_utiles = get_bits(b, 3);
+			if(nb_bits_utiles < 7) { // 11000 -> 11110
+				nb_bits_utiles = nb_bits_utiles + 7;
+			}else { // 11111
+				if(get_bit(b) == 0) { // 111110
+					nb_bits_utiles = 14;
+				}else { // 111111
+					nb_bits_utiles = 15;
+				}
+			}
+		}
+	}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-return 0 ; /* pour enlever un warning du compilateur */
+	// on recupere le nombre de bits utiles - 1, et on ajoute le 1 manquant au debut du nombre
+	return pose_bit(get_bits(b, nb_bits_utiles-1), nb_bits_utiles-1, 1) ;
 }
 
 /*
@@ -116,25 +113,22 @@ return 0 ; /* pour enlever un warning du compilateur */
 
 void put_entier_signe(struct bitstream *b, int i)
 {
-
-
-
-
-
-
-
-
-
-
+	if( i < 0 ) {
+		put_bit(b, 1);
+		put_entier(b, -i - 1);
+	}else {
+		put_bit(b, 0);
+		put_entier(b, i);
+	}
 }
 /*
  *
  */
 int get_entier_signe(struct bitstream *b)
 {
-
-
-
-
-return 0 ; /* pour enlever un warning du compilateur */
+	if( get_bit(b) == 1 ) {
+		return -(get_entier(b) + 1);
+	}else {
+		return get_entier(b);
+	}
 }

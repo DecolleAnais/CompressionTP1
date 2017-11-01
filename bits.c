@@ -2,7 +2,7 @@
 #include "bits.h"
 
 /*
- * Oon écrit les "nb" bits de droite de "v"
+ * On écrit les "nb" bits de droite de "v"
  * dans le fichier (toujours du poids fort au faible).
  *
  * Pour v=11 nb=8 on va écrire les bits : 00001011 dans le fichier
@@ -10,10 +10,8 @@
 
 void put_bits(struct bitstream *b, unsigned int nb, unsigned long v)
 {
-
-
-
-
+	while(nb)
+		put_bit(b, prend_bit(v, --nb));
 }
 
 
@@ -27,13 +25,11 @@ void put_bits(struct bitstream *b, unsigned int nb, unsigned long v)
 
 unsigned int get_bits(struct bitstream *b, unsigned int nb)
 {
-
-
-
-
-
-
-return 0 ; /* pour enlever un warning du compilateur */
+	uint val = 0;
+	for(uint i = 0;i < nb;i++) {
+		val = 2*val + get_bit(b); 
+	}
+	return val ; /* pour enlever un warning du compilateur */
 }
 
 /*
@@ -46,6 +42,8 @@ return 0 ; /* pour enlever un warning du compilateur */
 
 void put_bit_string(struct bitstream *b, const char *bits)
 {
-
-
+	while(*bits != '\0') {
+		put_bit(b, *bits != '0' );
+		bits++;
+	}
 }

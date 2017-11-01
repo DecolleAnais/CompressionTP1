@@ -45,7 +45,7 @@ struct bitstream
  *     - Ce fichier est la sortie standard s'il est ouvert en écriture.
  *
  * Un fichier est ouvert en lecture ou ecriture.
- * Pas les deux en même en temps.
+ * Pas les deux en même temps.
  *     - En lecture on ne fera que des "getbit" (définie plus loin)
  *     - En écriture on ne fera que des "putbit" (définie plus loin)
  *
@@ -54,32 +54,39 @@ struct bitstream
  * Pour plus d'explications sur les exceptions, regardez "exception.h"
  */
 
-struct bitstream *open_bitstream(const char *fichier, const char* mode)
+struct bitstream * open_bitstream(const char *fichier, const char* mode)
 {
+	// allocation structure
+	struct bitstream * bitstream;
+	ALLOUER(bitstream, 1);
+
+	// init mode ecriture/lecture
+	if(mode[0] == 'r')
+		bitstream->ecriture = Faux;
+	else
+		bitstream->ecriture = Vrai;
+
+	// init nombre de bits contenus dans le buffer
+	bitstream->nb_bits_dans_buffer = 0;
 
 
+	// ouverture entree/sortie standard
+	if(strcmp(fichier, "-") == 0) {
+		if(bitstream->ecriture)
+			bitstream->fichier = stdout;
+		else
+			bitstream->fichier = stdin;
+	}else{
+		// ouverture fichier
+		bitstream->fichier = fopen(fichier, mode);
+		if(bitstream->fichier == NULL) {
+			free(bitstream);
+			EXCEPTION_LANCE(Exception_fichier_ouverture);
+		}
+	}
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-return 0 ; /* pour enlever un warning du compilateur */
+	return bitstream; 
+	/* pour enlever un warning du compilateur */
 }
 
 /*
@@ -99,14 +106,16 @@ return 0 ; /* pour enlever un warning du compilateur */
 
 void flush_bitstream(struct bitstream *b)
 {
+	if(b->ecriture && b->nb_bits_dans_buffer) {
+		// buffer non vide
+		if(fputc(b->buffer, b->fichier) == EOF) {
+			EXCEPTION_LANCE(Exception_fichier_ecriture);	// erreur fputc
+		}
 
-
-
-
-
-
-
-
+		// vide le buffer
+		b->buffer = 0;
+		b->nb_bits_dans_buffer = 0;
+	}
 
 }
 
@@ -121,14 +130,12 @@ void flush_bitstream(struct bitstream *b)
 
 void close_bitstream(struct bitstream *b)
 {
+	flush_bitstream(b);
 
-
-
-
-
-
-
-
+	if(fclose(b->fichier)) {
+		EXCEPTION_LANCE(Exception_fichier_fermeture);
+	}
+	free(b);
 }
 
 /*
@@ -150,10 +157,22 @@ void close_bitstream(struct bitstream *b)
 
 void put_bit(struct bitstream *b, Booleen bit)
 {
+	if(b->ecriture) {
+		// mode ecriture
 
+		if(b->nb_bits_dans_buffer == NB_BITS) {
+			// buffer plein
+			// sauvegarde le buffer dans le fichier
+			flush_bitstream(b);
+		}
+		// on ajoute le bit dans le buffer
+		b->buffer = pose_bit(b->buffer, NB_BITS - 1 - b->nb_bits_dans_buffer, bit);
+		b->nb_bits_dans_buffer++;
 
-
-
+	}else {
+		// mode lecture
+		EXCEPTION_LANCE(Exception_fichier_ecriture_dans_fichier_ouvert_en_lecture);
+	}
 
 }
 
@@ -183,20 +202,29 @@ void put_bit(struct bitstream *b, Booleen bit)
 
 Booleen get_bit(struct bitstream *b)
 {
+	if(b->ecriture) {
+		// mode ecriture
+		EXCEPTION_LANCE(Exception_fichier_lecture_dans_fichier_ouvert_en_ecriture);
+	}
+	// mode lecture
+	if(!b->nb_bits_dans_buffer){
+		// buffer vide -> on lit dans le fichier
+		int c = fgetc(b->fichier);
+		if(c == EOF){ // EOF
+			EXCEPTION_LANCE(Exception_fichier_lecture);
+		}
+			
+		// c est un uchar (caste en int) donc il remplit le buffer
+		b->buffer = c;
+		b->nb_bits_dans_buffer = NB_BITS;
+	}
 
+	// buffer non vide -> on lit le buffer
+	Booleen bit = prend_bit(b->buffer, b->nb_bits_dans_buffer - 1);
+	b->nb_bits_dans_buffer--;
+	return bit;
 
-
-
-
-
-
-
-
-
-
-
-
-return 0 ; /* pour enlever un warning du compilateur */
+	
 }
 
 /*

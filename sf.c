@@ -30,16 +30,19 @@ struct shannon_fano
  */
 struct shannon_fano* open_shannon_fano()
 {
+  struct shannon_fano* sf;
+  ALLOUER(sf, 1);
 
+  sf->nb_evenements = 1;
 
+  struct evenement e;
 
+  e.valeur = VALEUR_ESCAPE;
+  e.nb_occurrences = 1;
 
+  sf->evenements[0] = e;
 
-
-
-
-
-return 0 ; /* pour enlever un warning du compilateur */
+  return sf;
 }
 
 /*
@@ -47,7 +50,7 @@ return 0 ; /* pour enlever un warning du compilateur */
  */
 void close_shannon_fano(struct shannon_fano *sf)
 {
-
+  free(sf);
 }
 
 /*
@@ -59,14 +62,12 @@ void close_shannon_fano(struct shannon_fano *sf)
 
 static int trouve_position(const struct shannon_fano *sf, int evenement)
 {
+  for(unsigned int pos = 0;pos < sf->nb_evenements;sf++) {
+    if(sf->evenements[pos].valeur == evenement) 
+      return pos; // evenement trouve, on retourne la position
+  }
 
-
-
-
-
-
-
-return 0 ; /* pour enlever un warning du compilateur */
+  return 0; // pas d'evenement trouve, on retourne 0, la position d'ESCAPE
 }
 
 /*
@@ -89,17 +90,22 @@ static int trouve_separation(const struct shannon_fano *sf
 			     , int position_max)
 {
 
+  int somme_max = 0;
+  int somme_min = 0;
+  int pos_min = position_min;
+  int pos_max = position_max;
+  while(pos_min != pos_max) {
 
+    if(abs(somme_min + sf->evenements[pos_min + 1].nb_occurrences - somme_max) < abs(somme_min - somme_max - sf->evenements[pos_max - 1].nb_occurrences )) {
+      somme_min += sf->evenements[pos_min + 1].nb_occurrences;
+      pos_min--;  
+    }else {
+      somme_max += sf->evenements[pos_max - 1].nb_occurrences;  
+      pos_max++;
+    }    
+  }
 
-
-
-
-
-
-
-
-
-return 0 ; /* pour enlever un warning du compilateur */
+  return pos_min;
 }
 
 /*
@@ -112,23 +118,13 @@ static void encode_position(struct bitstream *bs,struct shannon_fano *sf,
 		     int position)
 {
 
+  int pos_separation = trouve_separation(sf, 0, sf->nb_evenements);
+  while(pos_separation != 0) {
+    if(position > pos_separation)
+    put_bit(bs, position > pos_separation);
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    pos_separation = trouve_separation(sf, 0, pos_separation);
+  }
 
 }
 
